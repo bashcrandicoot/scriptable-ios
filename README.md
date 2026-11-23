@@ -9,7 +9,7 @@ Home screen widgets for [Scriptable](https://scriptable.app) on iOS.
 | `Weather-Radar.js` | Large | RainViewer radar centered on your location, with state outlines and your location name |
 | `Reminders.js` | Medium | Your next open reminders, overdue first, with due dates and an open count |
 | `Daily-Pulse.js` | Large | Progress rings (day, tasks, battery), next event with a live countdown, and a 12-hour temperature curve. Design: [Figma](https://www.figma.com/design/mnzpp4k1jlRcurEIEkVcuP) |
-| `Hub.js` | Medium | Four tappable tiles: forecast, next event with a live countdown, reminders, and agent app icons |
+| `Hub.js` | Medium | Personal hub: battery, next sunset or sunrise, air quality and UV, and week and year progress |
 | `Loader.js` | Any | Downloads and runs the latest version of one of the scripts above |
 
 ## Setup
