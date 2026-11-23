@@ -80,34 +80,55 @@ async function buildWidget() {
   const wx = left.addStack()
   wx.layoutVertically()
 
+  // Title: green "online" dot + Forecast
   const top = wx.addStack()
   top.layoutHorizontally()
   top.centerAlignContent()
-  const sym = SFSymbol.named(weather.symbol) || SFSymbol.named("cloud")
-  sym.applyFont(Font.mediumSystemFont(12))
-  const icon = top.addImage(sym.image)
-  icon.imageSize = new Size(14, 14)
-  icon.tintColor = TEXT
-  icon.resizable = true
-  top.addSpacer(5)
-  const loc = top.addText(weather.place)
-  loc.font = Font.semiboldSystemFont(10)
-  loc.textColor = dim(0.7)
-  loc.lineLimit = 1
-  loc.minimumScaleFactor = 0.7
+
+  const glow = top.addStack()
+  glow.size = new Size(12, 12)
+  glow.cornerRadius = 6
+  glow.backgroundColor = new Color("30D158", 0.25)
+  glow.layoutHorizontally()
+  glow.centerAlignContent()
+  glow.addSpacer()
+  const dot = glow.addStack()
+  dot.size = new Size(7, 7)
+  dot.cornerRadius = 3.5
+  dot.backgroundColor = new Color("30D158")
+  glow.addSpacer()
+
+  top.addSpacer(6)
+
+  const title = top.addText("Forecast")
+  title.font = Font.semiboldSystemFont(12)
+  title.textColor = TEXT
+  title.lineLimit = 1
+  title.minimumScaleFactor = 0.8
 
   wx.addSpacer()
 
   const temp = wx.addText(weather.temp)
-  temp.font = Font.ultraLightSystemFont(42)
+  temp.font = Font.ultraLightSystemFont(38)
   temp.textColor = TEXT
   temp.lineLimit = 1
   temp.minimumScaleFactor = 0.6
 
   wx.addSpacer(1)
 
-  const cond = wx.addText(weather.condition)
-  cond.font = Font.mediumSystemFont(12)
+  // Condition with its weather icon
+  const condRow = wx.addStack()
+  condRow.layoutHorizontally()
+  condRow.centerAlignContent()
+  const sym = SFSymbol.named(weather.symbol) || SFSymbol.named("cloud")
+  sym.applyFont(Font.mediumSystemFont(11))
+  const icon = condRow.addImage(sym.image)
+  icon.imageSize = new Size(12, 12)
+  icon.tintColor = TEXT
+  icon.resizable = true
+  condRow.addSpacer(4)
+  const cond = condRow.addText(weather.condition)
+  cond.font = Font.mediumSystemFont(11)
   cond.textColor = TEXT
   cond.lineLimit = 1
   cond.minimumScaleFactor = 0.7
@@ -119,6 +140,14 @@ async function buildWidget() {
   hl.textColor = dim(0.55)
   hl.lineLimit = 1
   hl.minimumScaleFactor = 0.8
+
+  wx.addSpacer(2)
+
+  const loc = wx.addText(weather.place)
+  loc.font = Font.semiboldSystemFont(8.5)
+  loc.textColor = dim(0.45)
+  loc.lineLimit = 1
+  loc.minimumScaleFactor = 0.7
 
   left.addSpacer()
 
