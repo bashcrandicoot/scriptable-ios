@@ -20,6 +20,10 @@ Home screen widgets for [Scriptable](https://scriptable.app) on iOS.
 
 Edit a script here and the widgets pick up the change on their next refresh. The loader keeps the last downloaded copy, so widgets still work offline.
 
+## One loader per widget
+
+If you'd rather not use the Parameter field, the `loaders/` folder has a loader for each widget with the script name built in. Add the one you want to Scriptable and pick it as the widget's script.
+
 ## Data sources
 
 - Weather: [Open-Meteo](https://open-meteo.com)
