@@ -4,7 +4,7 @@ Home screen widgets for [Scriptable](https://scriptable.app) on iOS.
 
 | Script | Widget size | What it shows |
 | --- | --- | --- |
-| `AI-Launcher.js` | Medium | Grok Bot, Muse, ChatGPT, Gemini and Claude icons that open each app |
+| `AI-Launcher.js` | Medium | "Agent Hub" with a green online dot, and Grok Bot, Muse, ChatGPT, Gemini and Claude icons that open each app |
 | `Weather-Calendar.js` | Medium | Current weather and the month calendar with event dots |
 | `Weather-Radar.js` | Large | RainViewer radar centered on your location, with state outlines and your location name |
 | `Loader.js` | Any | Downloads and runs the latest version of one of the scripts above |

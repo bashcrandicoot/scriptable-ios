@@ -1,4 +1,5 @@
-// Medium Scriptable widget with five app icons in one row.
+// Medium Scriptable widget: "Agent Hub" title with a green online dot,
+// and five app icons in one row.
 // Run once inside Scriptable to download the official App Store icons.
 // Each icon opens its app directly via URL scheme.
 // If an app's url is "", that icon falls back to its Shortcut.
@@ -77,6 +78,34 @@ background.endPoint = new Point(1, 1);
 widget.backgroundGradient = background;
 
 const icons = await Promise.all(apps.map(loadIcon));
+
+// Title row: green "online" dot + Agent Hub
+const header = widget.addStack();
+header.layoutHorizontally();
+header.centerAlignContent();
+header.setPadding(0, 6, 0, 6);
+
+const glow = header.addStack();
+glow.size = new Size(12, 12);
+glow.cornerRadius = 6;
+glow.backgroundColor = new Color("30D158", 0.25);
+glow.centerAlignContent();
+glow.layoutHorizontally();
+glow.addSpacer();
+const dot = glow.addStack();
+dot.size = new Size(7, 7);
+dot.cornerRadius = 3.5;
+dot.backgroundColor = new Color("30D158");
+glow.addSpacer();
+
+header.addSpacer(7);
+
+const title = header.addText("Agent Hub");
+title.font = Font.semiboldSystemFont(13);
+title.textColor = new Color("F2F0F6");
+title.lineLimit = 1;
+
+header.addSpacer();
 
 widget.addSpacer();
 
