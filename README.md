@@ -6,7 +6,7 @@ Home screen widgets for [Scriptable](https://scriptable.app) on iOS.
 | --- | --- | --- |
 | `AI-Launcher.js` | Medium | Grok Bot, Muse, ChatGPT, Gemini and Claude icons that open each app |
 | `Weather-Calendar.js` | Medium | Current weather and the month calendar with event dots |
-| `Weather-Radar.js` | Large | Radar map centered on your location (NOAA NEXRAD, RainViewer backup) |
+| `Weather-Radar.js` | Large | Radar image from your nearest NWS radar station, with your location name (NOAA and RainViewer tiles as backups) |
 | `Loader.js` | Any | Downloads and runs the latest version of one of the scripts above |
 
 ## Setup
@@ -27,5 +27,5 @@ If you'd rather not use the Parameter field, the `loaders/` folder has a loader 
 ## Data sources
 
 - Weather: [Open-Meteo](https://open-meteo.com)
-- Radar: NOAA NEXRAD via [Iowa Environmental Mesonet](https://mesonet.agron.iastate.edu), with [RainViewer](https://www.rainviewer.com) as a fallback
+- Radar: [NWS](https://radar.weather.gov) station images, then NOAA NEXRAD tiles via [Iowa Environmental Mesonet](https://mesonet.agron.iastate.edu), then [RainViewer](https://www.rainviewer.com)
 - Map: [CARTO](https://carto.com) basemap, data (c) [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors

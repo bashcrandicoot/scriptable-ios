@@ -6,14 +6,15 @@
   MINIMAL WEATHER RADAR
   Large widget for Scriptable, styled to match the AI Launcher.
 
-  Full-bleed radar map centered on your location, with a weather tile
-  on top and a radar time tile at the bottom.
+  Full-bleed radar image with a location tile on top and a radar
+  time tile at the bottom.
 
-  Radar:   NOAA NEXRAD mosaic via Iowa Environmental Mesonet (US, free,
-           no key, updated every 5 minutes). Outside the US, or if NOAA
-           is down, it falls back to RainViewer (free, no key).
-  Map:     CARTO dark basemap, OpenStreetMap data
-  Weather: Open-Meteo (free, no API key)
+  Radar (tried in this order, all free with no key):
+    1. NWS: the ready-made image from your nearest NOAA radar station
+       (radar.weather.gov), US only
+    2. NOAA NEXRAD mosaic tiles via Iowa Environmental Mesonet, US only
+    3. RainViewer tiles, worldwide
+  Map for 2 and 3: CARTO dark basemap, OpenStreetMap data
 
   SETUP
   Paste into a Scriptable script, then add a LARGE Scriptable widget
@@ -29,8 +30,8 @@ const CONFIG = {
   tileRadius: 13,
   textHex: "#F2F0F6",
   units: "fahrenheit",        // "fahrenheit" or "celsius"
-  radarSource: "auto",        // "auto", "noaa" (US only) or "rainviewer"
-  zoom: 7,                    // 6 = wider area, 8 = closer (8+ works with NOAA only)
+  radarSource: "auto",        // "auto", "nws", "noaa" (US only) or "rainviewer"
+  zoom: 7,                    // tiles only: 6 = wider area, 8 = closer (8+ NOAA only)
   radarColor: 2,              // RainViewer only: 2 = Universal Blue (the only free scheme)
   smooth: true,               // RainViewer only: soften the radar edges
   showSnow: true,             // RainViewer only: separate colors for snow
@@ -44,7 +45,6 @@ const CONFIG = {
 
 const TEXT = new Color(CONFIG.textHex)
 const dim = (a) => new Color(CONFIG.textHex, a)
-const DEG = String.fromCharCode(176)
 const DOT = String.fromCharCode(183)
 const COPY = String.fromCharCode(169)
 
@@ -52,7 +52,7 @@ const fm = FileManager.local()
 const DIR = fm.joinPath(fm.documentsDirectory(), "minimal-weather-radar")
 if (!fm.fileExists(DIR)) fm.createDirectory(DIR, true)
 const LOC_CACHE = fm.joinPath(DIR, "location.json")
-const WX_CACHE = fm.joinPath(DIR, "weather.json")
+const STATION_CACHE = fm.joinPath(DIR, "station.json")
 const MAP_CACHE = fm.joinPath(DIR, "map.png")
 const TIME_CACHE = fm.joinPath(DIR, "time.txt")
 
@@ -65,11 +65,11 @@ Script.complete()
 // ---------------- WIDGET ----------------
 async function buildWidget() {
   const loc = CONFIG.testLocation || await getLocation()
-  const [weather, radar] = await Promise.all([getWeather(loc), getRadarMap(loc)])
+  const radar = await getRadarMap(loc)
 
   const w = new ListWidget()
   w.setPadding(12, 14, 12, 14)
-  w.url = "weather://"
+  w.url = radar.station ? "https://radar.weather.gov/station/" + radar.station + "/standard" : "weather://"
   w.refreshAfterDate = new Date(Date.now() + CONFIG.refreshMinutes * 60 * 1000)
 
   const bg = new LinearGradient()
@@ -80,55 +80,30 @@ async function buildWidget() {
   w.backgroundGradient = bg
   if (radar.image) w.backgroundImage = radar.image
 
-  // Weather tile
+  // Location tile
   const head = w.addStack()
   head.layoutHorizontally()
   head.centerAlignContent()
   head.cornerRadius = CONFIG.tileRadius
   head.backgroundColor = new Color(CONFIG.tileHex, CONFIG.tileAlpha)
-  head.setPadding(10, 12, 10, 12)
+  head.setPadding(9, 12, 9, 12)
 
-  const info = head.addStack()
-  info.layoutVertically()
+  const pin = SFSymbol.named("location.fill")
+  if (pin) {
+    pin.applyFont(Font.mediumSystemFont(11))
+    const pi = head.addImage(pin.image)
+    pi.imageSize = new Size(12, 12)
+    pi.tintColor = TEXT
+    head.addSpacer(6)
+  }
 
-  const top = info.addStack()
-  top.layoutHorizontally()
-  top.centerAlignContent()
-  const sym = SFSymbol.named(weather.symbol) || SFSymbol.named("cloud")
-  sym.applyFont(Font.mediumSystemFont(12))
-  const icon = top.addImage(sym.image)
-  icon.imageSize = new Size(14, 14)
-  icon.tintColor = TEXT
-  icon.resizable = true
-  top.addSpacer(5)
-  const place = top.addText(weather.place)
-  place.font = Font.semiboldSystemFont(10)
-  place.textColor = dim(0.7)
+  const place = head.addText((loc.name || "Current location").toUpperCase())
+  place.font = Font.semiboldSystemFont(12)
+  place.textColor = TEXT
   place.lineLimit = 1
   place.minimumScaleFactor = 0.7
 
-  info.addSpacer(4)
-
-  const cond = info.addText(weather.condition)
-  cond.font = Font.mediumSystemFont(13)
-  cond.textColor = TEXT
-  cond.lineLimit = 1
-  cond.minimumScaleFactor = 0.7
-
-  info.addSpacer(2)
-
-  const hl = info.addText(weather.hiLo)
-  hl.font = Font.regularSystemFont(10)
-  hl.textColor = dim(0.55)
-  hl.lineLimit = 1
-
   head.addSpacer()
-
-  const temp = head.addText(weather.temp)
-  temp.font = Font.ultraLightSystemFont(40)
-  temp.textColor = TEXT
-  temp.lineLimit = 1
-  temp.minimumScaleFactor = 0.6
 
   w.addSpacer()
 
@@ -163,7 +138,8 @@ async function buildWidget() {
 
   foot.addSpacer()
 
-  const credit = foot.addText(radar.credit + " " + DOT + " " + COPY + " OSM " + DOT + " " + COPY + " CARTO")
+  const creditText = radar.station ? radar.credit : radar.credit + " " + DOT + " " + COPY + " OSM " + DOT + " " + COPY + " CARTO"
+  const credit = foot.addText(creditText)
   credit.font = Font.regularSystemFont(7.5)
   credit.textColor = dim(0.4)
   credit.lineLimit = 1
@@ -185,9 +161,18 @@ async function getRadarMap(loc) {
   const S = 3
   const CW = 364 * S, CH = 382 * S
   const inUS = loc.latitude > 18 && loc.latitude < 55 && loc.longitude > -135 && loc.longitude < -60
+
+  // 1. NWS station image (map and radar in one picture)
+  if ((CONFIG.radarSource === "auto" && inUS) || CONFIG.radarSource === "nws") {
+    const nws = await nwsRadar(loc, CW, CH)
+    if (nws) return nws
+    console.log("NWS radar failed, trying tiles")
+  }
+
+  // 2 and 3. Radar tiles on a dark map
   let order = ["rainviewer"]
   if (CONFIG.radarSource === "noaa") order = ["noaa"]
-  else if (CONFIG.radarSource === "auto" && inUS) order = ["noaa", "rainviewer"]
+  else if ((CONFIG.radarSource === "auto" || CONFIG.radarSource === "nws") && inUS) order = ["noaa", "rainviewer"]
 
   // RainViewer stops at zoom 7, NOAA tiles go closer
   const wantZ = Math.max(1, Math.min(10, CONFIG.zoom))
@@ -254,6 +239,72 @@ async function getRadarMap(loc) {
   } catch (e) {}
 
   return { image, timeText, status, credit: radar ? radar.credit : "Radar" }
+}
+
+// NWS "standard" radar image for the nearest radar station
+async function nwsRadar(loc, CW, CH) {
+  const station = await nwsStation(loc)
+  if (!station) return null
+
+  const url = "https://radar.weather.gov/ridge/standard/" + station + "_0.gif?" + Math.floor(Date.now() / 120000)
+  const t = await loadTile(url)
+  if (!t) return null
+
+  const ctx = new DrawContext()
+  ctx.size = new Size(CW, CH)
+  ctx.respectScreenScale = false
+  ctx.opaque = true
+  ctx.setFillColor(new Color(CONFIG.bgBottomHex))
+  ctx.fillRect(new Rect(0, 0, CW, CH))
+
+  // Scale to fill the widget, centered
+  const iw = t.img.size.width, ih = t.img.size.height
+  const scale = Math.max(CW / iw, CH / ih)
+  const dw = iw * scale, dh = ih * scale
+  ctx.drawImageInRect(t.img, new Rect((CW - dw) / 2, (CH - dh) / 2, dw, dh))
+
+  fadeBand(ctx, 0, CH * 0.22, CW, 0.6, true)
+  fadeBand(ctx, CH * 0.82, CH * 0.18, CW, 0.6, false)
+
+  const image = ctx.getImage()
+  const df = new DateFormatter()
+  df.dateFormat = "h:mm a"
+  const timeText = df.string(new Date())
+  try {
+    fm.writeImage(MAP_CACHE, image)
+    fm.writeString(TIME_CACHE, timeText)
+  } catch (e) {}
+
+  console.log("NWS radar " + station + ": " + iw + "x" + ih + ", " + t.bytes + " bytes")
+  return { image, timeText, status: null, credit: "NWS " + station, station }
+}
+
+// Nearest radar station for this spot, from api.weather.gov (saved between runs)
+async function nwsStation(loc) {
+  const key = loc.latitude.toFixed(2) + "," + loc.longitude.toFixed(2)
+  try {
+    if (fm.fileExists(STATION_CACHE)) {
+      const c = JSON.parse(fm.readString(STATION_CACHE))
+      if (c.key === key && c.station) return c.station
+    }
+  } catch (e) {}
+
+  try {
+    const req = new Request("https://api.weather.gov/points/" + loc.latitude.toFixed(4) + "," + loc.longitude.toFixed(4))
+    req.headers = { "User-Agent": "(scriptable-ios radar widget)", "Accept": "application/geo+json" }
+    req.timeoutInterval = 10
+    const data = await req.loadJSON()
+    const station = data && data.properties && data.properties.radarStation
+    if (!station) {
+      console.log("NWS points lookup: no radar station in response")
+      return null
+    }
+    fm.writeString(STATION_CACHE, JSON.stringify({ key, station }))
+    return station
+  } catch (e) {
+    console.log("NWS points lookup: " + e)
+    return null
+  }
 }
 
 // Which map tiles cover the widget, and where each one goes
@@ -347,7 +398,7 @@ async function loadTile(url) {
   }
 }
 
-// ---------------- WEATHER ----------------
+// ---------------- LOCATION ----------------
 async function getLocation() {
   try {
     Location.setAccuracyToThreeKilometers()
@@ -364,73 +415,4 @@ async function getLocation() {
     if (fm.fileExists(LOC_CACHE)) return JSON.parse(fm.readString(LOC_CACHE))
     return CONFIG.fallbackLocation
   }
-}
-
-async function getWeather(loc) {
-  const unit = CONFIG.units === "celsius" ? "celsius" : "fahrenheit"
-  const url =
-    "https://api.open-meteo.com/v1/forecast" +
-    "?latitude=" + loc.latitude.toFixed(3) + "&longitude=" + loc.longitude.toFixed(3) +
-    "&current=temperature_2m,weather_code,is_day" +
-    "&daily=temperature_2m_max,temperature_2m_min" +
-    "&temperature_unit=" + unit + "&timezone=auto&forecast_days=1"
-
-  let data
-  try {
-    data = await new Request(url).loadJSON()
-    if (!data.current) throw new Error("bad response")
-    fm.writeString(WX_CACHE, JSON.stringify(data))
-  } catch (e) {
-    if (fm.fileExists(WX_CACHE)) data = JSON.parse(fm.readString(WX_CACHE))
-  }
-
-  if (!data || !data.current) {
-    return { place: (loc.name || "-").toUpperCase(), temp: "--" + DEG, condition: "Unavailable", hiLo: "", symbol: "cloud" }
-  }
-
-  const code = data.current.weather_code
-  const isDay = data.current.is_day === 1
-  const [label, daySym, nightSym] = wmo(code)
-  const r = (v) => Math.round(v)
-  return {
-    place: (loc.name || "Current location").toUpperCase(),
-    temp: r(data.current.temperature_2m) + DEG,
-    condition: label,
-    hiLo: "H " + r(data.daily.temperature_2m_max[0]) + DEG + "   L " + r(data.daily.temperature_2m_min[0]) + DEG,
-    symbol: isDay ? daySym : nightSym,
-  }
-}
-
-function wmo(code) {
-  const map = {
-    0: ["Clear", "sun.max", "moon.stars"],
-    1: ["Mostly Clear", "sun.max", "moon"],
-    2: ["Partly Cloudy", "cloud.sun", "cloud.moon"],
-    3: ["Overcast", "cloud", "cloud"],
-    45: ["Fog", "cloud.fog", "cloud.fog"],
-    48: ["Fog", "cloud.fog", "cloud.fog"],
-    51: ["Light Drizzle", "cloud.drizzle", "cloud.drizzle"],
-    53: ["Drizzle", "cloud.drizzle", "cloud.drizzle"],
-    55: ["Heavy Drizzle", "cloud.drizzle", "cloud.drizzle"],
-    56: ["Freezing Drizzle", "cloud.sleet", "cloud.sleet"],
-    57: ["Freezing Drizzle", "cloud.sleet", "cloud.sleet"],
-    61: ["Light Rain", "cloud.rain", "cloud.rain"],
-    63: ["Rain", "cloud.rain", "cloud.rain"],
-    65: ["Heavy Rain", "cloud.heavyrain", "cloud.heavyrain"],
-    66: ["Freezing Rain", "cloud.sleet", "cloud.sleet"],
-    67: ["Freezing Rain", "cloud.sleet", "cloud.sleet"],
-    71: ["Light Snow", "cloud.snow", "cloud.snow"],
-    73: ["Snow", "cloud.snow", "cloud.snow"],
-    75: ["Heavy Snow", "snowflake", "snowflake"],
-    77: ["Snow Grains", "cloud.snow", "cloud.snow"],
-    80: ["Showers", "cloud.sun.rain", "cloud.moon.rain"],
-    81: ["Showers", "cloud.rain", "cloud.rain"],
-    82: ["Heavy Showers", "cloud.heavyrain", "cloud.heavyrain"],
-    85: ["Snow Showers", "cloud.snow", "cloud.snow"],
-    86: ["Snow Showers", "cloud.snow", "cloud.snow"],
-    95: ["Thunderstorm", "cloud.bolt.rain", "cloud.bolt.rain"],
-    96: ["Thunderstorm", "cloud.bolt.rain", "cloud.bolt.rain"],
-    99: ["Thunderstorm", "cloud.bolt.rain", "cloud.bolt.rain"],
-  }
-  return map[code] || ["-", "cloud", "cloud"]
 }
