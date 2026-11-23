@@ -63,7 +63,7 @@ async function buildWidget() {
   w.backgroundColor = new Color(CONFIG.bgHex)
   if (radar) w.backgroundImage = radar.image
   w.setPadding(12, 14, 12, 14)
-  w.url = "https://www.rainviewer.com/weather-radar-map-live.html?loc=" + [place.lat, place.lon, place.zoom].join(",")
+  w.url = "weather://"   // tap opens the Apple Weather app
   w.refreshAfterDate = new Date(Date.now() + CONFIG.refreshMinutes * 60 * 1000)
 
   // Title tile: green "online" dot + Radar on the left, location on the right
