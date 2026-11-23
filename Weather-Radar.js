@@ -47,6 +47,9 @@ const TEXT = new Color(CONFIG.textHex)
 const dim = (a) => new Color(CONFIG.textHex, a)
 const DOT = String.fromCharCode(183)
 const COPY = String.fromCharCode(169)
+const DIAG = []   // short notes on what failed, shown in the bottom tile
+let lastTileError = ""
+const note = (m) => { console.log(m); if (DIAG.length < 3) DIAG.push(m) }
 
 const fm = FileManager.local()
 const DIR = fm.joinPath(fm.documentsDirectory(), "minimal-weather-radar")
@@ -130,7 +133,10 @@ async function buildWidget() {
 
   foot.addSpacer(5)
 
-  const when = foot.addText(radar.status ? radar.timeText + "  " + DOT + "  " + radar.status : radar.timeText)
+  let whenText = radar.timeText
+  if (radar.status) whenText += "  " + DOT + "  " + radar.status
+  if (!radar.station && DIAG.length) whenText += "  " + DOT + "  " + DIAG.join(", ")
+  const when = foot.addText(whenText)
   when.font = Font.mediumSystemFont(10)
   when.textColor = dim(0.55)
   when.lineLimit = 1
@@ -199,7 +205,7 @@ async function getRadarMap(loc) {
   if (!baseCount && !radarTiles.length) return cached("Offline")
 
   let status = null
-  if (!radarTiles.length) status = "Radar unavailable"
+  if (!radarTiles.length) status = "Radar tiles " + (lastTileError || "failed")
   else if (radarTiles.every(t => t.bytes < radar.emptyBytes)) status = "No rain in view"
   else if (!baseCount) status = "Map unavailable"
 
@@ -248,7 +254,10 @@ async function nwsRadar(loc, CW, CH) {
 
   const url = "https://radar.weather.gov/ridge/standard/" + station + "_0.gif?" + Math.floor(Date.now() / 120000)
   const t = await loadTile(url)
-  if (!t) return null
+  if (!t) {
+    note("NWS image " + lastTileError)
+    return null
+  }
 
   const ctx = new DrawContext()
   ctx.size = new Size(CW, CH)
@@ -296,12 +305,13 @@ async function nwsStation(loc) {
     const data = await req.loadJSON()
     const station = data && data.properties && data.properties.radarStation
     if (!station) {
-      console.log("NWS points lookup: no radar station in response")
+      note("NWS: no station")
       return null
     }
     fm.writeString(STATION_CACHE, JSON.stringify({ key, station }))
     return station
   } catch (e) {
+    note("NWS lookup failed")
     console.log("NWS points lookup: " + e)
     return null
   }
@@ -386,14 +396,19 @@ async function loadTile(url) {
     const code = req.response ? req.response.statusCode : 0
     if (code !== 200 || !data) {
       console.log("tile " + code + ": " + url)
+      lastTileError = "HTTP " + code
       return null
     }
     const img = Image.fromData(data)
-    if (!img) return null
+    if (!img) {
+      lastTileError = "bad image"
+      return null
+    }
     const bytes = Math.floor(data.toBase64String().length * 3 / 4)
     return { img, bytes }
   } catch (e) {
     console.log("tile error: " + url + " " + e)
+    lastTileError = "no connection"
     return null
   }
 }
