@@ -66,7 +66,7 @@ async function buildWidget() {
   w.url = "https://www.rainviewer.com/weather-radar-map-live.html?loc=" + [place.lat, place.lon, place.zoom].join(",")
   w.refreshAfterDate = new Date(Date.now() + CONFIG.refreshMinutes * 60 * 1000)
 
-  // Location tile
+  // Title tile: green "online" dot + Radar on the left, location on the right
   const head = w.addStack()
   head.layoutHorizontally()
   head.centerAlignContent()
@@ -74,22 +74,42 @@ async function buildWidget() {
   head.backgroundColor = new Color(CONFIG.tileHex, CONFIG.tileAlpha)
   head.setPadding(9, 12, 9, 12)
 
+  const glow = head.addStack()
+  glow.size = new Size(12, 12)
+  glow.cornerRadius = 6
+  glow.backgroundColor = new Color("30D158", 0.25)
+  glow.layoutHorizontally()
+  glow.centerAlignContent()
+  glow.addSpacer()
+  const dot = glow.addStack()
+  dot.size = new Size(7, 7)
+  dot.cornerRadius = 3.5
+  dot.backgroundColor = new Color("30D158")
+  glow.addSpacer()
+
+  head.addSpacer(7)
+
+  const title = head.addText("Radar")
+  title.font = Font.semiboldSystemFont(13)
+  title.textColor = TEXT
+  title.lineLimit = 1
+
+  head.addSpacer()
+
   const pin = SFSymbol.named("location.fill")
   if (pin) {
     pin.applyFont(Font.mediumSystemFont(11))
     const pi = head.addImage(pin.image)
-    pi.imageSize = new Size(12, 12)
-    pi.tintColor = TEXT
-    head.addSpacer(6)
+    pi.imageSize = new Size(10, 10)
+    pi.tintColor = dim(0.7)
+    head.addSpacer(5)
   }
 
   const name = head.addText((loc.name || "Current location").toUpperCase())
-  name.font = Font.semiboldSystemFont(12)
-  name.textColor = TEXT
+  name.font = Font.semiboldSystemFont(10)
+  name.textColor = dim(0.7)
   name.lineLimit = 1
   name.minimumScaleFactor = 0.7
-
-  head.addSpacer()
 
   w.addSpacer()
 
@@ -100,21 +120,6 @@ async function buildWidget() {
   foot.cornerRadius = CONFIG.tileRadius
   foot.backgroundColor = new Color(CONFIG.tileHex, CONFIG.tileAlpha)
   foot.setPadding(7, 12, 7, 12)
-
-  const rIcon = SFSymbol.named("dot.radiowaves.left.and.right")
-  if (rIcon) {
-    rIcon.applyFont(Font.mediumSystemFont(10))
-    const ri = foot.addImage(rIcon.image)
-    ri.imageSize = new Size(12, 12)
-    ri.tintColor = TEXT
-    foot.addSpacer(5)
-  }
-
-  const label = foot.addText("RADAR")
-  label.font = Font.boldSystemFont(10)
-  label.textColor = TEXT
-
-  foot.addSpacer(5)
 
   const clock = new DateFormatter()
   clock.locale = Device.locale()
