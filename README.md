@@ -8,6 +8,7 @@ Home screen widgets for [Scriptable](https://scriptable.app) on iOS.
 | `Weather-Calendar.js` | Medium | Current weather and the month calendar with event dots |
 | `Weather-Radar.js` | Large | RainViewer radar centered on your location, with state outlines and your location name |
 | `Reminders.js` | Medium | Your next open reminders, overdue first, with due dates and an open count |
+| `Daily-Pulse.js` | Large | Progress rings (day, tasks, battery), next event with a live countdown, and a 12-hour temperature curve. Design: [Figma](https://www.figma.com/design/mnzpp4k1jlRcurEIEkVcuP) |
 | `Loader.js` | Any | Downloads and runs the latest version of one of the scripts above |
 
 ## Setup
@@ -18,6 +19,7 @@ Home screen widgets for [Scriptable](https://scriptable.app) on iOS.
    - `Weather-Calendar` (medium)
    - `Weather-Radar` (large)
    - `Reminders` (medium)
+   - `Daily-Pulse` (large)
 3. Run `Loader` inside Scriptable once with `DEFAULT` set to `"AI-Launcher"` so the app icons download.
 
 Edit a script here and the widgets pick up the change on their next refresh. The loader keeps the last downloaded copy, so widgets still work offline.
