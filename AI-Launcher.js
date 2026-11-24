@@ -1,8 +1,10 @@
 // Medium Scriptable widget: "Agent Hub" title with a green online dot,
-// and five app icons in one row.
-// Run once inside Scriptable to download the official App Store icons.
-// Each icon opens its app directly via URL scheme.
-// If an app's url is "", that icon falls back to its Shortcut.
+// and six app icons in two rows of three.
+// Run once inside Scriptable to download the icons (App Store artwork for
+// apps, the site's home screen icon for web apps).
+// Each icon opens its app directly via URL scheme. Web apps open their
+// address (iOS opens it in Safari; widgets can't launch a home screen web
+// app directly). If an app's url is "", that icon falls back to its Shortcut.
 
 const apps = [
   { name: "Grok Bot", url: "grokbot://",      shortcut: "Open Grok Bot", id: 6794501026, fallback: "bolt.fill" },
@@ -10,9 +12,13 @@ const apps = [
   { name: "ChatGPT",  url: "chatgpt://",      shortcut: "Open ChatGPT",  id: 6448311069, fallback: "bubble.left.fill" },
   { name: "Gemini",   url: "googlegemini://", shortcut: "Open Gemini",   id: 6477489729, fallback: "sparkles" },
   { name: "Claude",   url: "claude://",       shortcut: "Open Claude",   id: 6473753684, fallback: "asterisk" },
+  // Web app: change url/site to the exact address you saved to your Home Screen
+  { name: "Antigravity", url: "https://antigravity.google", site: "https://antigravity.google", shortcut: "Open Antigravity", id: "antigravity", fallback: "arrow.up.circle.fill" },
 ];
 
-const TILE = 48;
+const PER_ROW = 3;
+
+const TILE = 46;
 const RADIUS = 12;
 
 function tapURL(app) {
@@ -33,6 +39,8 @@ async function loadIcon(app) {
   }
 
   if (!config.runsInApp) return null;
+
+  if (app.site) return await loadWebIcon(app, path);
 
   let artwork;
   try {
@@ -65,6 +73,53 @@ async function loadIcon(app) {
     console.log(`${app.name} icon: ${error}`);
     return null;
   }
+}
+
+// Scriptable has no URL class, so resolve links by hand
+function resolveURL(href, base) {
+  if (/^https?:\/\//i.test(href)) return href;
+  const origin = base.match(/^https?:\/\/[^/]+/i)[0];
+  if (href.startsWith("//")) return "https:" + href;
+  if (href.startsWith("/")) return origin + href;
+  const dir = base.replace(/[?#].*$/, "").replace(/[^/]*$/, "");
+  return (dir.length > origin.length ? dir : origin + "/") + href;
+}
+
+// Home screen icon for a web app: the page's apple-touch-icon, then the
+// standard /apple-touch-icon.png, then its largest favicon
+async function loadWebIcon(app, path) {
+  const candidates = [];
+  try {
+    const page = new Request(app.site);
+    page.timeoutInterval = 8;
+    const html = await page.loadString();
+    const links = html.match(/<link\b[^>]*>/gi) || [];
+    const href = (re) => {
+      const tag = links.find(t => re.test(t));
+      return tag?.match(/\bhref=["']([^"']+)["']/i)?.[1]?.replace(/&amp;/g, "&");
+    };
+    const touch = href(/\brel=["'][^"']*apple-touch-icon[^"']*["']/i);
+    const fav = href(/\brel=["'][^"']*\bicon\b[^"']*["']/i);
+    for (const h of [touch, fav]) if (h) candidates.push(resolveURL(h, app.site));
+  } catch (error) {
+    console.log(`${app.name} page: ${error}`);
+  }
+  candidates.push(resolveURL("/apple-touch-icon.png", app.site));
+
+  for (const url of candidates) {
+    try {
+      const req = new Request(url);
+      req.timeoutInterval = 8;
+      const icon = await req.loadImage();
+      if (icon && icon.size.width >= 32) {
+        files.writeImage(path, icon);
+        return icon;
+      }
+    } catch (error) {
+      console.log(`${app.name} icon ${url}: ${error}`);
+    }
+  }
+  return null;
 }
 
 const widget = new ListWidget();
@@ -109,34 +164,39 @@ header.addSpacer();
 
 widget.addSpacer();
 
-const row = widget.addStack();
-row.layoutHorizontally();
-row.centerAlignContent();
-row.addSpacer();
-
-apps.forEach((app, index) => {
-  const tile = row.addStack();
-  tile.size = new Size(TILE, TILE);
-  tile.cornerRadius = RADIUS;
-  tile.backgroundColor = new Color("24232A");
-  tile.setPadding(0, 0, 0, 0);
-  tile.centerAlignContent();
-  tile.url = tapURL(app);
-
-  const icon = icons[index];
-  if (!icon) tile.addSpacer();
-
-  const image = tile.addImage(icon || SFSymbol.named(app.fallback).image);
-  image.imageSize = icon ? new Size(TILE, TILE) : new Size(23, 23);
-  image.cornerRadius = RADIUS;
-
-  if (!icon) {
-    image.tintColor = new Color("F2F0F6");
-    tile.addSpacer();
-  }
-
+// Icons: rows of PER_ROW, spread evenly
+for (let r = 0; r * PER_ROW < apps.length; r++) {
+  if (r > 0) widget.addSpacer(10);
+  const row = widget.addStack();
+  row.layoutHorizontally();
+  row.centerAlignContent();
   row.addSpacer();
-});
+
+  apps.slice(r * PER_ROW, r * PER_ROW + PER_ROW).forEach((app, i) => {
+    const index = r * PER_ROW + i;
+    const tile = row.addStack();
+    tile.size = new Size(TILE, TILE);
+    tile.cornerRadius = RADIUS;
+    tile.backgroundColor = new Color("24232A");
+    tile.setPadding(0, 0, 0, 0);
+    tile.centerAlignContent();
+    tile.url = tapURL(app);
+
+    const icon = icons[index];
+    if (!icon) tile.addSpacer();
+
+    const image = tile.addImage(icon || SFSymbol.named(app.fallback).image);
+    image.imageSize = icon ? new Size(TILE, TILE) : new Size(22, 22);
+    image.cornerRadius = RADIUS;
+
+    if (!icon) {
+      image.tintColor = new Color("F2F0F6");
+      tile.addSpacer();
+    }
+
+    row.addSpacer();
+  });
+}
 
 widget.addSpacer();
 
